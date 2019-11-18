@@ -1,0 +1,36 @@
+# 告诉Travis 使用 NodeJS
+language: node_js
+
+# 告诉Travis 使用 NodeJS 哪个版本
+node_js:
+  - 'stable'
+
+# 告诉Travis 缓存node_modules目录
+cache:
+  directories:
+    - node_modules
+
+# 告诉Travis 运行哪个命令
+script:
+  - yarn run build
+
+# 部署结构
+deploy:
+  # 表示在使用Github Pages
+  provider: pages:git
+
+  # 告诉Travis 将dist目录下的文件用于部署
+  local_dir: dist
+
+  # 告诉Travis 不要删除dist文件
+  skip_cleanup: true
+
+  # 设置Github token。通过使用环境变量避免将token暴露
+  deploy_key: $GITHUB_TOKEN
+
+  # 使用 dpl v2进行发布。采用 dpl v1 一直发布失败
+  edge: true
+
+  # 告诉Travis 在什么情况下触发部署。只有当代码合并到master分支时，才触发部署
+  on:
+    branch: master

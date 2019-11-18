@@ -1,0 +1,19 @@
+{
+  "presets": [
+    "@babel/preset-env",
+    "@babel/preset-react" // 增加React的babel preset配置
+  ],
+  /*
+   * 一个plugin可以理解为对应一个功能
+   */
+  "plugins": [
+    // 解决@connect问题
+    ["@babel/plugin-proposal-decorators", { "legacy": true }],
+
+    // 将React组件类中的方法的this绑定到组件本身
+    ["@babel/plugin-proposal-class-properties", { "loose": true }],
+
+    // 动态import(目前还没有原生支持，需要babel转换)
+    "@babel/plugin-syntax-dynamic-import"
+  ]
+}

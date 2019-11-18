@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /*
+     * 指定输出文件的根目录。
+     */
+    "outDir": "./dist/",
+    /*
+     * 当表达式和申明类型为 any 时，是否需要发出警告，设置 true，则不警告。
+     */
+    "noImplicitAny": true,
+    /*
+     * module 用于指定模块的代码生成规则，可以使用 commonjs、 amd、 umd、 system、 es6、 es2015、 none这些选项。
+     */
+    "module": "es2015",
+    /*
+     * target 用于指定生成代码的兼容版本，可以从es3、es5、es2015、es6中选择一个，如果不设置，默认生产的代码兼容到es3。
+     */
+    "target": "es5",
+    /*
+     * 用于指定按照何种方式生成jsx代码，可选react和preserve。
+     */
+    "jsx": "react",
+    /*
+     * 当设置为true时，js文件也会被编译。
+     */
+    "allowJs": true,
+    /*
+     * 设置为true时，则允许从没有默认导出的模块中默认导入(也就是不做检查)。
+     */
+    "allowSyntheticDefaultImports": true,
+    /*
+     * 设置为true，则支持ES7的装饰器特性。
+     */
+    "experimentalDecorators": true
+  }
+}

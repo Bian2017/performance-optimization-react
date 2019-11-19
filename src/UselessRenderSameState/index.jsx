@@ -1,8 +1,7 @@
 import React, { Component, Fragment } from 'react'
 import ReactDOM from 'react-dom'
-
-import NoStateChange from './NoStateChange'
-import OptimizeNoStateChange from './OptimizeNoStateChange'
+import NoStateChange from './NoStateChange.jsx'
+import OptimizeNoStateChange from './OptimizeNoStateChange.jsx'
 
 class App extends Component {
   render() {

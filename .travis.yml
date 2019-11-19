@@ -23,7 +23,7 @@ deploy:
   local_dir: dist
 
   # 告诉Travis 不要删除dist文件
-  cleanup: true
+  skip_cleanup: true
 
   # 设置Github token。通过使用环境变量避免将token暴露
   deploy_key: $GITHUB_TOKEN

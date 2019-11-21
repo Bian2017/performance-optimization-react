@@ -21,11 +21,11 @@ class NoStateChange extends Component {
   render() {
     return (
       <div>
-        <p>每次点击“试验”按钮，数值count会被设置成相同值。</p>
+        <p>每次点击“设置”按钮，数值count会被设置成相同值。</p>
         <p>当前count值: {this.state.count}</p>
         <p>组件发生渲染：{test_cnt}</p>
         <p>
-          <button onClick={this.handleClick}>试验</button>
+          <button onClick={this.handleClick}>设置</button>
         </p>
       </div>
     )

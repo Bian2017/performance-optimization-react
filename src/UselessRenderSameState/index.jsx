@@ -8,7 +8,7 @@ class App extends Component {
     return (
       <Fragment>
         <h2>场景：</h2>
-        <strong>给组件的 state 设置相同的值，组件的 state 并未发生变化，但组件依旧发生渲染。</strong>
+        <strong>给 React 组件的 state 设置相同的值，组件的 state 并未发生变化，React 组件是否会发生无用渲染？</strong>
         <div>
           <h4>测试：未性能优化</h4>
           <NoStateChange />

@@ -30,11 +30,11 @@ class NoStateChange extends Component {
   render() {
     return (
       <div>
-        <p>每次点击“试验”按钮，数值count会被设置成相同值。</p>
+        <p>每次点击“设置”按钮，数值count会被设置成相同值。</p>
         <p>当前count值: {this.state.count}</p>
         <p>组件发生渲染：{test_cnt}</p>
         <p>
-          <button onClick={this.handleClick}>试验</button>
+          <button onClick={this.handleClick}>设置</button>
         </p>
       </div>
     )
@@ -46,11 +46,11 @@ export default NoStateChange
 
 ### 验证
 
-实际测试结果是依旧发生渲染，[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderParent.html)
+实际验证结果是依旧会发生重复渲染，[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)。
 
-更多代码，见[样例代码](https://github.com/Bian2017/performance-optimization-react/tree/master/src/UselessRenderSameState)。
+更多验证代码，见[样例代码](https://github.com/Bian2017/performance-optimization-react/tree/master/src/UselessRenderSameState)。
 
-### 缘由
+### 原因
 
 以下代码摘自 React V0.12.0 版本。
 
@@ -71,7 +71,7 @@ var assign = require('Object.assign');
 
 每次调用 setState，React 会通过 Object.assign 生成一个新的对象(引用地址发生变化)，然后重新执行渲染逻辑。
 
-因此进行性能优化的时候，不能以为值未发生变化，就直接比较 this.state 与 nextState。
+因此进行性能优化的时候，不能简单以为值未发生变化，就直接比较 this.state 与 nextState。
 
 **错误示范:**
 
@@ -125,7 +125,7 @@ class NoStateChange extends PureComponent {
 export default NoStateChange
 ```
 
-PureComponent 内部通过对 props 和 state 进行了浅比较(shallowEqual)来决定是否要进行渲染。
+PureComponent 内部通过对 props 和 state 进行了浅比较(shallowEqual)来决定是否要进行渲染。代码如下，摘自 React v15.6.0 中的 ReactCompositeComponent.js 文件。
 
 ```JS
 if (!this._pendingForceUpdate) {
@@ -146,5 +146,3 @@ if (!this._pendingForceUpdate) {
     }
   }
 ```
-
-上述代码摘自 React v15.6.0 中的 ReactCompositeComponent.js 文件。

@@ -1,14 +1,17 @@
-## React 性能优化
+## React 性能优化(一)
 
-**场景：**
+### 场景
 
-给 React 组件的 state 设置相同的值，组件的 state 并未发生变化，React 组件是否会发生无用渲染？
+先抛出一个疑问：给 React 组件的 state 设置相同的值，组件的 state 并未发生变化，React 组件是否会发生重复渲染呢？
 
-代码逻辑如下：
+**示例如下：**
+
+每次点击`设置`按钮，都会对当前组件的 state 设置相同的值`{count: 1}`。
 
 ```JS
 import React, { Component } from 'react'
 
+// 全局变量，用于记录组件是否产生渲染
 let test_cnt = 1
 
 class NoStateChange extends Component {
@@ -46,9 +49,7 @@ export default NoStateChange
 
 ### 验证
 
-实际验证结果是依旧会发生重复渲染，[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)。
-
-更多验证代码，见[样例代码](https://github.com/Bian2017/performance-optimization-react/tree/master/src/UselessRenderSameState)。
+实际验证结果是依旧会发生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)。
 
 ### 原因
 
@@ -69,7 +70,7 @@ var assign = require('Object.assign');
   },
 ```
 
-每次调用 setState，React 会通过 Object.assign 生成一个新的对象(引用地址发生变化)，然后重新执行渲染逻辑。
+每次调用 setState，React 会通过 Object.assign 生成一个新的对象(注：此时 state 的引用地址产生了变化)，然后重新执行渲染逻辑。
 
 因此进行性能优化的时候，不能简单以为值未发生变化，就直接比较 this.state 与 nextState。
 
@@ -83,13 +84,14 @@ shouldComponentUpdate(nextProps, nextState) {
 }
 ```
 
-### 性能优化
+### 如何进行性能优化？
 
-针对上述场景，可以通过使用 PureComponent 来减少无用的渲染。
+针对上述场景，可以通过使用 PureComponent 来减少无用的渲染，代码如下，查看[更多](https://github.com/Bian2017/performance-optimization-react/tree/master/src/UselessRenderSameState)。
 
 ```JS
 import React, { PureComponent } from 'react'
 
+// 全局变量，用于记录组件是否产生渲染
 let test_cnt = 1
 
 class NoStateChange extends PureComponent {
@@ -111,11 +113,11 @@ class NoStateChange extends PureComponent {
   render() {
     return (
       <div>
-        <p>每次点击“试验”按钮，数值count会被设置成相同值。</p>
+        <p>每次点击“设置”按钮，数值count会被设置成相同值。</p>
         <p>当前count值: {this.state.count}</p>
         <p>组件发生渲染：{test_cnt}</p>
         <p>
-          <button onClick={this.handleClick}>试验</button>
+          <button onClick={this.handleClick}>设置</button>
         </p>
       </div>
     )
@@ -125,7 +127,7 @@ class NoStateChange extends PureComponent {
 export default NoStateChange
 ```
 
-PureComponent 内部通过对 props 和 state 进行了浅比较(shallowEqual)来决定是否要进行渲染。代码如下，摘自 React v15.6.0 中的 ReactCompositeComponent.js 文件。
+PureComponent 内部通过对 props 和 state 进行了浅比较(shallowEqual)来决定是否要进行渲染。官方代码如下，摘自 React v15.6.0 中的 ReactCompositeComponent.js 文件。
 
 ```JS
 if (!this._pendingForceUpdate) {
@@ -137,7 +139,7 @@ if (!this._pendingForceUpdate) {
         nextContext,
       );
     } else {
-      // 判断当前是否PureComponent
+      // 判断当前组件类型是否是PureComponent，如果是则对props和state进行浅比较
       if (this._compositeType === CompositeTypes.PureClass) {
         shouldUpdate =
           !shallowEqual(prevProps, nextProps) ||

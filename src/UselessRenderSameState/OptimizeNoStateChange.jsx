@@ -1,5 +1,6 @@
 import React, { PureComponent } from 'react'
 
+// 全局变量，用于记录组件是否产生渲染
 let test_cnt = 1
 
 class NoStateChange extends PureComponent {

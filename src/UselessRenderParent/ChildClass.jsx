@@ -1,18 +1,13 @@
-import React, { Fragment, Component } from 'react'
+import React, { Component } from 'react';
 
-let cnt = 0
+let cnt = 0;
 
 class ChildClass extends Component {
   render() {
-    cnt = cnt + 1
-    console.log('未性能优化: class组件发生渲染')
+    cnt = cnt + 1;
 
-    return (
-      <Fragment>
-        <h4>Class组件: 未性能优化 --- {cnt}</h4>
-      </Fragment>
-    )
+    return <p>Class组件发生渲染次数: {cnt}</p>;
   }
 }
 
-export default ChildClass
+export default ChildClass;

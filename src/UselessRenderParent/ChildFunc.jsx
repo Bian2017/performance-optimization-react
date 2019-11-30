@@ -1,12 +1,11 @@
-import React from 'react'
+import React from 'react';
 
-let cnt = 0
+let cnt = 0;
 
 const ChildFunc = () => {
-  console.log('未性能优化: 函数组件发生渲染')
-  cnt = cnt + 1
+  cnt = cnt + 1;
 
-  return <h4>函数组件: 未性能优化 --- {cnt}</h4>
-}
+  return <p>函数组件发生渲染次数: {cnt}</p>;
+};
 
-export default ChildFunc
+export default ChildFunc;

@@ -1,4 +1,4 @@
-# React 性能优化 —— 浅谈 memo 组件和 PureComponent 组件
+# React 性能优化 —— 浅谈 PureComponent 组件 与 memo 组件
 
 在谈性能优化之前，先抛出一个问题：
 
@@ -82,11 +82,12 @@ const ChildFunc = () => {
 export default ChildFunc;
 ```
 
-实际验证结果显示，不管是函数组件还是 Class 组件，只要父组件发生了变化，二者均会产生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderParent.html)。
+实际验证结果表明，无论是函数组件还是 Class 组件，只要父组件的 state 发生了变化，二者均会产生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderParent.html)。
 
 ## 二、性能优化
 
-针对函数组件，我们可以采用 memo 来减少重复渲染。针对 Class 组件，则采用 PureComponent 组件来减少重复渲染。
+- 针对函数组件，我们可以采用 memo 来减少重复渲染；
+- 针对 Class 组件，则采用`PureComponent`组件来减少重复渲染；
 
 实现逻辑如下：
 
@@ -128,9 +129,9 @@ export default ChildClass;
 
 下面浅谈下 PureComponent 组件和 memo 函数的实现。
 
-## 三、性能优化之 PureComponent 组件
+## 三、PureComponent 组件
 
-### 3.1 React.PureComponent 概念
+### 3.1 PureComponent 概念
 
 以下内容摘自[React.PureComponent](https://zh-hans.reactjs.org/docs/react-api.html#reactpurecomponent)。
 
@@ -148,8 +149,10 @@ export default ChildClass;
 
 #### 3.2.1 PureComponent 组件定义
 
+以下代码摘自 React v16.9.0 中的 `ReactBaseClasses.js`文件。
+
 ```JS
-// ComponentDummy起桥接作用，用于实现一个正确的原型链，其原型指向Component.prototype
+// ComponentDummy起桥接作用，用于PureComponent实现一个正确的原型链，其原型指向Component.prototype
 function ComponentDummy() {}
 ComponentDummy.prototype = Component.prototype;
 
@@ -225,9 +228,9 @@ function checkShouldComponentUpdate(
 }
 ```
 
-由上述代码可以看出，如果一个 PureComponent 组件自定义了 shouldComponentUpdate 生命周期函数，则该组件是否进行渲染取决于 shouldComponentUpdate 生命周期函数的执行结果。如果未定义该生命周期函数，才会浅比较状态 state 和 props。
+由上述代码可以看出，如果一个 PureComponent 组件自定义了`shouldComponentUpdate`生命周期函数，则该组件是否进行渲染取决于`shouldComponentUpdate`生命周期函数的执行结果，不会再进行额外的浅比较。如果未定义该生命周期函数，才会浅比较状态 state 和 props。
 
-## 四、性能优化之 React.memo 组件
+## 四、memo 组件
 
 ### 4.1 React.memo 概念
 
@@ -239,7 +242,7 @@ const MyComponent = React.memo(function MyComponent(props) {
 });
 ```
 
-`React.memo`为高阶组件。它与`React.PureComponent`非常相似，但它适用于函数组件，但不适用于 class 组件。
+`React.memo`为**高阶组件**。它与`React.PureComponent`非常相似，但它适用于函数组件，但不适用于 class 组件。
 
 如果你的函数组件在给定相同`props`的情况下渲染相同的结果，那么你可以通过将其包装在`React.memo`中调用，以此通过记忆组件渲染结果的方式来提高组件的性能表现。这意味着在这种情况下，React 将跳过渲染组件的操作并**直接复用**最近一次渲染的结果。
 
@@ -285,14 +288,12 @@ export default function memo<Props>(
 }
 ```
 
+其中：
+
 - type：表示自定义的 React 组件；
 - compare：表示自定义的性能优化函数，类似`shouldcomponentupdate`生命周期函数；
 
 #### 4.2.2 memo 函数的性能优化实现机制
-
-**名词解释：**
-
-- work-in-progress(简写 WIP: 半成品)：表示尚未完成的 Fiber，也就是尚未返回的堆栈帧，对象 workInProgress 是 reconcile 过程中从 Fiber 建立的当前进度快照，用于断点恢复。
 
 以下代码摘自 React v16.9.0 中的 `ReactFiberBeginWork.js`文件。
 

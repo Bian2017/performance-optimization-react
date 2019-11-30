@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import ChildClass from './ChildClass.jsx';
 import ChildFunc from './ChildFunc.jsx';
 import OpChildClass from './OpChildClass.jsx';
-import OpChildFunc from './OPChildFunc.jsx';
+import OpChildFunc from './OpChildFunc.jsx';
 
 class App extends Component {
   state = {

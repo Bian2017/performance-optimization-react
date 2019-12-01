@@ -8,9 +8,11 @@
 
 ## 一、场景复现
 
-针对上述问题，先进行一个简单复现，代码如下：
+针对上述问题，先进行一个简单复现。
 
-**父组件：**
+App 组件包含两个子组件，分别是函数组件 ChildFunc 和类组件 ChildClass。App 组件每隔 2 秒会对自身状态 cnt 自行累加。代码如下：
+
+**App 组件：**
 
 ```JS
 import React, { Component, Fragment } from 'react';
@@ -82,34 +84,17 @@ const ChildFunc = () => {
 export default ChildFunc;
 ```
 
-实际验证结果表明，无论是函数组件还是 Class 组件，只要父组件的 state 发生了变化，二者均会产生重复渲染，详见![性能优化前](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentBeforeOptimization.gif)。
+实际验证结果表明，如下图所示，无论是函数组件还是 Class 组件，只要父组件的 state 发生了变化，二者均会产生重复渲染。
+
+![性能优化前](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentBeforeOptimization.gif)
 
 ## 二、性能优化
 
-- 针对函数组件，我们可以采用 memo 来减少重复渲染；
-- 针对 Class 组件，则采用`PureComponent`组件来减少重复渲染；
+那么该如何减少子组件的重复渲染呢？好在 React 官方提供了两个 `memo` 组件和 `PureComponent`组件用于减少重复渲染。
 
-实现逻辑如下：
+代码优化逻辑如下：
 
-**函数组件:**
-
-```JS
-import React, { PureComponent } from 'react';
-
-let cnt = 0;
-
-class ChildClass extends PureComponent {
-  render() {
-    cnt = cnt + 1;
-
-    return <p>Class组件发生渲染次数: {cnt}</p>;
-  }
-}
-
-export default ChildClass;
-```
-
-**Class 组件:**
+**函数组件：**
 
 ```JS
 import React, { PureComponent } from 'react';
@@ -127,8 +112,29 @@ class ChildClass extends PureComponent {
 export default ChildClass;
 ```
 
-实际验证结果如下![性能优化后](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentAfterOptimization.gif)。
-下面浅谈下 PureComponent 组件和 memo 函数的实现。
+**Class 组件：**
+
+```JS
+import React, { PureComponent } from 'react';
+
+let cnt = 0;
+
+class ChildClass extends PureComponent {
+  render() {
+    cnt = cnt + 1;
+
+    return <p>Class组件发生渲染次数: {cnt}</p>;
+  }
+}
+
+export default ChildClass;
+```
+
+实际验证结果如下图所示，每当 App 组件状态发生变化时，优化后的函数子组件和类子组件均不再产生重复渲染。
+
+![性能优化后](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentAfterOptimization.gif)
+
+下面结合 React 源码，浅谈下 PureComponent 组件和 memo 组件的实现原理。
 
 ## 三、PureComponent 组件
 

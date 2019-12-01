@@ -8,9 +8,9 @@
 
 ## 一、场景复现
 
-针对上述问题，先进行一个简单复现。
+针对上述问题，先进行一个简单的复现验证。
 
-App 组件包含两个子组件，分别是函数组件 ChildFunc 和类组件 ChildClass。App 组件每隔 2 秒会对自身状态 cnt 自行累加。代码如下：
+App 组件包含两个子组件，分别是函数组件 ChildFunc 和类组件 ChildClass。App 组件每隔 2 秒会对自身状态 cnt 自行累加 1，用于验证两个子组件是否会发生重复渲染，具体代码逻辑如下。
 
 **App 组件：**
 
@@ -90,27 +90,7 @@ export default ChildFunc;
 
 ## 二、性能优化
 
-那么该如何减少子组件的重复渲染呢？好在 React 官方提供了两个 `memo` 组件和 `PureComponent`组件用于减少重复渲染。
-
-代码优化逻辑如下：
-
-**函数组件：**
-
-```JS
-import React, { PureComponent } from 'react';
-
-let cnt = 0;
-
-class ChildClass extends PureComponent {
-  render() {
-    cnt = cnt + 1;
-
-    return <p>Class组件发生渲染次数: {cnt}</p>;
-  }
-}
-
-export default ChildClass;
-```
+那么该如何减少子组件发生重复渲染呢？好在 React 官方提供了 `memo` 组件和`PureComponent`组件分别用于减少函数组件和类组件的重复渲染，具体优化逻辑如下：
 
 **Class 组件：**
 
@@ -128,6 +108,22 @@ class ChildClass extends PureComponent {
 }
 
 export default ChildClass;
+```
+
+**函数组件：**
+
+```JS
+import React, { memo } from 'react';
+
+let cnt = 0;
+
+const OpChildFunc = () => {
+  cnt = cnt + 1;
+
+  return <p>函数组件发生渲染次数: {cnt}</p>;
+};
+
+export default memo(OpChildFunc);
 ```
 
 实际验证结果如下图所示，每当 App 组件状态发生变化时，优化后的函数子组件和类子组件均不再产生重复渲染。

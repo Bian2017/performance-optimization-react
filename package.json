@@ -1,5 +1,5 @@
 {
-  "name": "zcjl-h5-fontend",
+  "name": "react-performance-optimization",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -9,8 +9,6 @@
     "@types/react": "16.9.5",
     "@types/react-dom": "16.9.1",
     "@types/react-router-dom": "^5.1.0",
-    "antd-mobile": "^2.3.1",
-    "bizcharts": "^3.5.5",
     "react": "^16.10.2",
     "react-dom": "^16.10.2",
     "react-redux": "^7.1.1",

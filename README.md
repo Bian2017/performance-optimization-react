@@ -1,17 +1,19 @@
-## React 性能优化
+# React 性能优化
 
-### 一、memo 和 PureComponent 组件
+## 一、运行环境
 
-**场景一：**
+1. 安装依赖
 
-[样例](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)
+> yarn
 
-[代码]()
+2. 开发环境
 
-**场景二：**
+> yarn run dev
 
-场景二：给组件的 state 设置相同的值，此时组件的 state 并未发生变化，但组件依旧发生渲染
+## 二、性能优化样例
 
-[样例](https://bian2017.github.io/performance-optimization-react/UselessRenderParent.html)
+### 2.1 React 性能优化 —— 浅谈 PureComponent 组件 与 memo 组件
 
-[代码]()
+- [示例验证](https://bian2017.github.io/performance-optimization-react/OpUselessRenderParent.html)
+
+- [示例代码](https://github.com/Bian2017/performance-optimization-react/tree/master/src/OpUselessRenderParent)

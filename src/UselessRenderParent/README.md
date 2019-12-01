@@ -82,7 +82,7 @@ const ChildFunc = () => {
 export default ChildFunc;
 ```
 
-实际验证结果表明，无论是函数组件还是 Class 组件，只要父组件的 state 发生了变化，二者均会产生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderParent.html)。
+实际验证结果表明，无论是函数组件还是 Class 组件，只要父组件的 state 发生了变化，二者均会产生重复渲染，详见![性能优化前](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentBeforeOptimization.gif)。
 
 ## 二、性能优化
 
@@ -127,6 +127,7 @@ class ChildClass extends PureComponent {
 export default ChildClass;
 ```
 
+实际验证结果如下![性能优化后](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/ParentAfterOptimization.gif)。
 下面浅谈下 PureComponent 组件和 memo 函数的实现。
 
 ## 三、PureComponent 组件

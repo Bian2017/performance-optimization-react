@@ -280,25 +280,14 @@ function updateClassInstance(
 ): boolean {
   const instance = workInProgress.stateNode;
 
-  const oldProps = workInProgress.memoizedProps;
-  instance.props =
-    workInProgress.type === workInProgress.elementType
-      ? oldProps
-      : resolveDefaultProps(workInProgress.type, oldProps);
-
   // ...省略...
 
   const oldState = workInProgress.memoizedState;
   let newState = (instance.state = oldState);
   let updateQueue = workInProgress.updateQueue;
 
-  /**
-   * 每次调用setState，都会将要改变的状态添加到updateQueue更新队列中。
-   * 如果render之前多次调用setState，则会往updateQueue添加多条更新。
-   */
+  // 如果更新队列不为空，则处理更新队列，并将最终要更新的state赋值给newState
   if (updateQueue !== null) {
-    // 处理更新队列，将更新后的state存储在workInProgress中
-    //
     processUpdateQueue(
       workInProgress,
       updateQueue,
@@ -312,14 +301,10 @@ function updateClassInstance(
   // ...省略...
 
   /**
-   * 判断当前组件是否要进行渲染
-   *
-   * shouldUpdate值主要取决于shouldComponentUpdate生命周期执行结果，
-   * 亦或者PureComponent的浅比较结果
+   * shouldUpdate用于标识组件是否要进行渲染，其值取决于组件的shouldComponentUpdate生命周期执行结果，
+   * 亦或者PureComponent的浅比较的返回结果。
    */
-  const shouldUpdate =
-    checkHasForceUpdateAfterProcessing() ||
-    checkShouldComponentUpdate(
+  const shouldUpdate = checkShouldComponentUpdate(
       workInProgress,
       ctor,
       oldProps,
@@ -329,75 +314,89 @@ function updateClassInstance(
       nextContext,
     );
 
-
   if (shouldUpdate) {
-    /**
-     * ...省略...
-     *
-     * 此处执行相应的生命周期函数钩子
-     */
-  } else {
-    // If an update was already in progress, we should schedule an Update
-    // effect even though we're bailing out, so that cWU/cDU are called.
-    if (typeof instance.componentDidUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Update;
+     // 执行相应的生命周期函数
+     if (typeof instance.UNSAFE_componentWillUpdate === 'function' ||
+        typeof instance.componentWillUpdate === 'function') {
+      startPhaseTimer(workInProgress, 'componentWillUpdate');
+      if (typeof instance.componentWillUpdate === 'function') {
+        instance.componentWillUpdate(newProps, newState, nextContext);
       }
-    }
-    if (typeof instance.getSnapshotBeforeUpdate === 'function') {
-      if (
-        oldProps !== current.memoizedProps ||
-        oldState !== current.memoizedState
-      ) {
-        workInProgress.effectTag |= Snapshot;
+      if (typeof instance.UNSAFE_componentWillUpdate === 'function') {
+        instance.UNSAFE_componentWillUpdate(newProps, newState, nextContext);
       }
+      stopPhaseTimer();
     }
-
-    // If shouldComponentUpdate returned false, we should still update the
-    // memoized props/state to indicate that this work can be reused.
-    workInProgress.memoizedProps = newProps;
-    workInProgress.memoizedState = newState;
+    // ...省略...
   }
 
+  // ...省略...
+
   /**
-   * 不管shouldUpdate的值是true还是false，都更新当前组件实例的props和state 的值，即更新引用地址。
-   *
-   * 这里有个重要的知识点，要注意！！！！
-   * 即使我们采用PureComponent来减少无用渲染，但是该组件的state或者props依旧发生了变化。
+   * 不管shouldUpdate的值是true还是false，都会更新当前组件实例的props和state的值，即引用地址发生变化。
+   * 也就是说即使我们采用PureComponent来减少无用渲染，但并不代表该组件的state或者props的引用地址没有发生变化。
    */
   instance.props = newProps;
   instance.state = newState;
 
   return shouldUpdate;
 }
-
 ```
 
-### 4.4 beginWork 函数
+从上述代码可以看出，`updateClassInstance`函数做了以下几个功能点：
+
+- 遍历更新队列，产生一个全新的 state，并更新至组件实例的 state；
+- 返回是否要进行更新的标识位 shouldUpdate，该值的运行结果取决于`shouldComponentUpdate`生命周期函数执行结果或者`PureComponent`的浅比较结果；
+- 如果 shouldUpdate 的值为`true`，则执行生命周期函数`componentWillUpdate`；
+
+此时要特别注意以下几个点：
+
+1. 组件实例的状态发生变化，其引用地址发生变化；
+2. 即使采用`PureComponent`或者`shouldComponentUpdate`来减少无用渲染，但组件实例的 props 或者 state 的引用地址也发生了变化。
+
+### 4.4 updateClassComponent 函数
 
 ```JS
-  switch (workInProgress.tag) {
-    // ...省略...
-    case ClassComponent: {
-      const Component = workInProgress.type;
-      const unresolvedProps = workInProgress.pendingProps;
-      const resolvedProps =
-        workInProgress.elementType === Component
-          ? unresolvedProps
-          : resolveDefaultProps(Component, unresolvedProps);
-      return updateClassComponent(
-        current,
-        workInProgress,
-        Component,
-        resolvedProps,
-        renderExpirationTime,
-      );
-    }
-    // ...省略...
+function updateClassComponent(
+  current: Fiber | null,
+  workInProgress: Fiber,
+  Component: any,
+  nextProps,
+  renderExpirationTime: ExpirationTime,
+) {
+  const instance = workInProgress.stateNode;
+
+  // ...省略...
+
+  let shouldUpdate;
+
+  /**
+   * 获取是否要进行渲染的标识shouldUpdate，
+   *
+   */
+  shouldUpdate = updateClassInstance(
+    current,
+    workInProgress,
+    Component,
+    nextProps,
+    renderExpirationTime,
+  );
+
+  // 在 finishClassComponent会根据shouldUpdate值判断是否退出渲染
+  const nextUnitOfWork = finishClassComponent(
+    current,
+    workInProgress,
+    Component,
+    shouldUpdate,
+    hasContext,
+    renderExpirationTime,
+  );
+
+  return nextUnitOfWork;
+}
 ```
+
+`updateClassComponent`函数主要作用是完成组件实例的 state、props 的更新，并返回下一个待处理的任务单元。
 
 ## 五、小结
 

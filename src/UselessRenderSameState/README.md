@@ -292,12 +292,11 @@ function updateClassInstance(
 
 ```
 
-### 4.4 processUpdateQueue
+### 4.4 processUpdateQueue 函数
 
-处理更新队列
+摘自 `ReactUpdateQueue.js`文件。
 
 ```JS
-
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   queue: UpdateQueue<State>,
@@ -305,161 +304,52 @@ export function processUpdateQueue<State>(
   instance: any,
   renderExpirationTime: ExpirationTime,
 ): void {
-  hasForceUpdate = false;
+  // ...省略...
 
-  queue = ensureWorkInProgressQueueIsAClone(workInProgress, queue);
-
-  // These values may change as we process the queue.
+  // 获取上次状态prevState
   let newBaseState = queue.baseState;
-  let newFirstUpdate = null;
-  let newExpirationTime = NoWork;
-
-  // Iterate through the list of updates to compute the result.
-  let update = queue.firstUpdate;
-  let resultState = newBaseState;
 
   /**
-   * 对更新列表进行迭代，计算出新的结果
-   * 假设我们在render之前多次调用了setState，此时会依次循环，产生一个最终的state
+   * 若在render之前多次调用了setState，则会产生多个update对象。这些update对象会以链表的形式存在queue中。
+   * 现在对这个更新队列进行依次遍历，并计算出最终要更新的状态state。
    */
+  let update = queue.firstUpdate;
+  let resultState = newBaseState;
   while (update !== null) {
-    const updateExpirationTime = update.expirationTime;
-    if (updateExpirationTime < renderExpirationTime) {
-      // This update does not have sufficient priority. Skip it.
-      if (newFirstUpdate === null) {
-        // This is the first skipped update. It will be the first update in
-        // the new list.
-        newFirstUpdate = update;
-        // Since this is the first update that was skipped, the current result
-        // is the new base state.
-        newBaseState = resultState;
-      }
-      // Since this update will remain in the list, update the remaining
-      // expiration time.
-      if (newExpirationTime < updateExpirationTime) {
-        newExpirationTime = updateExpirationTime;
-      }
-    } else {
-      // This update does have sufficient priority.
+    // ...省略...
 
-      // Mark the event time of this update as relevant to this render pass.
-      // TODO: This should ideally use the true event time of this update rather than
-      // its priority which is a derived and not reverseable value.
-      // TODO: We should skip this update if it was already committed but currently
-      // we have no way of detecting the difference between a committed and suspended
-      // update here.
-      markRenderEventTimeAndConfig(updateExpirationTime, update.suspenseConfig);
+    /**
+     * resultState作为参数prevState传入getStateFromUpdate，然后getStateFromUpdate会合并生成
+     * 新的状态再次赋值给resultState。完成整个循环遍历，resultState即为最终要更新的state。
+     */
+    resultState = getStateFromUpdate(
+      workInProgress,
+      queue,
+      update,
+      resultState,
+      props,
+      instance,
+    );
+    // ...省略...
 
-      // Process it and compute a new result.
-      resultState = getStateFromUpdate(
-        workInProgress,
-        queue,
-        update,
-        resultState,
-        props,
-        instance,
-      );
-      const callback = update.callback;
-      if (callback !== null) {
-        workInProgress.effectTag |= Callback;
-        // Set this to null, in case it was mutated during an aborted render.
-        update.nextEffect = null;
-        if (queue.lastEffect === null) {
-          queue.firstEffect = queue.lastEffect = update;
-        } else {
-          queue.lastEffect.nextEffect = update;
-          queue.lastEffect = update;
-        }
-      }
-    }
-    // Continue to the next update.
+    // 遍历下一个update对象
     update = update.next;
   }
 
-  // Separately, iterate though the list of captured updates.
-  let newFirstCapturedUpdate = null;
-  update = queue.firstCapturedUpdate;
-  while (update !== null) {
-    const updateExpirationTime = update.expirationTime;
-    if (updateExpirationTime < renderExpirationTime) {
-      // This update does not have sufficient priority. Skip it.
-      if (newFirstCapturedUpdate === null) {
-        // This is the first skipped captured update. It will be the first
-        // update in the new list.
-        newFirstCapturedUpdate = update;
-        // If this is the first update that was skipped, the current result is
-        // the new base state.
-        if (newFirstUpdate === null) {
-          newBaseState = resultState;
-        }
-      }
-      // Since this update will remain in the list, update the remaining
-      // expiration time.
-      if (newExpirationTime < updateExpirationTime) {
-        newExpirationTime = updateExpirationTime;
-      }
-    } else {
-      // This update does have sufficient priority. Process it and compute
-      // a new result.
-      resultState = getStateFromUpdate(
-        workInProgress,
-        queue,
-        update,
-        resultState,
-        props,
-        instance,
-      );
-      const callback = update.callback;
-      if (callback !== null) {
-        workInProgress.effectTag |= Callback;
-        // Set this to null, in case it was mutated during an aborted render.
-        update.nextEffect = null;
-        if (queue.lastCapturedEffect === null) {
-          queue.firstCapturedEffect = queue.lastCapturedEffect = update;
-        } else {
-          queue.lastCapturedEffect.nextEffect = update;
-          queue.lastCapturedEffect = update;
-        }
-      }
-    }
-    update = update.next;
-  }
-
-  if (newFirstUpdate === null) {
-    queue.lastUpdate = null;
-  }
-  if (newFirstCapturedUpdate === null) {
-    queue.lastCapturedUpdate = null;
-  } else {
-    workInProgress.effectTag |= Callback;
-  }
-  if (newFirstUpdate === null && newFirstCapturedUpdate === null) {
-    // We processed every update, without skipping. That means the new base
-    // state is the same as the result state.
-    newBaseState = resultState;
-  }
-
-  queue.baseState = newBaseState;
-  queue.firstUpdate = newFirstUpdate;
-  queue.firstCapturedUpdate = newFirstCapturedUpdate;
-
-  // Set the remaining expiration time to be whatever is remaining in the queue.
-  // This should be fine because the only two other things that contribute to
-  // expiration time are props and context. We're already in the middle of the
-  // begin phase by the time we start processing the queue, so we've already
-  // dealt with the props. Context in components that specify
-  // shouldComponentUpdate is tricky; but we'll have to account for
-  // that regardless.
-  workInProgress.expirationTime = newExpirationTime;
+  // ...省略...
 
   // 将处理后的resultState更新到workInProgess上
   workInProgress.memoizedState = resultState;
 }
 ```
 
+在组件 render 之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象以链表的形式存在队列 queue 中。
+
+`processUpdateQueue`函数主要功能是对更新队列进行依次遍历，并算出最终的 state，将其存储在`workInProgress.memoizedState`中。
+
 ### 4.5 getStateFromUpdate 函数
 
-以下代码摘自 `ReactUpdateQueue.js`文件。
+摘自 `ReactUpdateQueue.js`文件。
 
 ```JS
 function getStateFromUpdate<State>(
@@ -471,37 +361,45 @@ function getStateFromUpdate<State>(
   instance: any,
 ): any {
   switch (update.tag) {
+
     // ....省略 ....
 
-    // Intentional fallthrough
+    // 见3.3节内容，调用setState会创建update对象，其属性tag当时被标记为UpdateState
     case UpdateState: {
+      // payload 存放的是要更新的状态state
       const payload = update.payload;
       let partialState;
+
+      // 获取要更新的状态
       if (typeof payload === 'function') {
         partialState = payload.call(instance, prevState, nextProps);
       } else {
-        // Partial state object
         partialState = payload;
       }
 
+      // partialState 为null 或者 undefined，则视为未操作，返回上次状态
       if (partialState === null || partialState === undefined) {
-        // Null and undefined are treated as no-ops.
         return prevState;
       }
 
-      // Merge the partial state and the previous state.
-
-      // 此处重新生成一个新的状态state， 注意引用地址发生变化
+      // 注意：此处通过Object.assign生成一个全新的状态state， state的引用地址发生了变化。
       return Object.assign({}, prevState, partialState);
     }
+
     // .... 省略 ....
   }
+
   return prevState;
 }
 ```
 
-每次调用 setState，React 会通过 Object.assign 生成一个新的对象(注：此时 state 的引用地址产生了变化)，然后重新执行渲染逻辑。
+`getStateFromUpdate` 函数主要功能是将存储在更新对象`update`上的`partialState`与上一次的`prevState`进行对象合并，生成一个全新的状态 state。
 
-因此进行性能优化的时候，不能简单以为值未发生变化，就直接比较 this.state 与 nextState。
+**注意：**
 
-注意，此处使用 Object.assign 做了一个对象的合并，Object.assign 第一个参数是空对象，也就是说新的 state 对象的引用地址发生了变化。
+- `Object.assign` 第一个参数是空对象，也就是说新的 state 对象的引用地址发生了变化。
+- `Object.assign` 进行的是浅拷贝，不是深拷贝。
+
+## 五、小结
+
+每次调用 setState，都会创建一个全新的 state，并引起组件的重新渲染。即使使用`PureComponent`进行性能优化，组件的 state 的引用地址依旧产生了变化。

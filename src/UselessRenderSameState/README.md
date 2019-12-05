@@ -159,32 +159,115 @@ createUpdate 创建了一个新的 update 对象。
 
 调度不是我们这次的讨论重点，所以我们先暂时跳过。后续有空再研究下，挖坑代填。
 
-### 4.1 beginWork 函数
+### 4.1 getStateFromUpdate 函数
+
+摘自 `ReactUpdateQueue.js`文件。
 
 ```JS
-  switch (workInProgress.tag) {
-    // ...省略...
-    case ClassComponent: {
-      const Component = workInProgress.type;
-      const unresolvedProps = workInProgress.pendingProps;
-      const resolvedProps =
-        workInProgress.elementType === Component
-          ? unresolvedProps
-          : resolveDefaultProps(Component, unresolvedProps);
-      return updateClassComponent(
-        current,
-        workInProgress,
-        Component,
-        resolvedProps,
-        renderExpirationTime,
-      );
+function getStateFromUpdate<State>(
+  workInProgress: Fiber,
+  queue: UpdateQueue<State>,
+  update: Update<State>,
+  prevState: State,
+  nextProps: any,
+  instance: any,
+): any {
+  switch (update.tag) {
+
+    // ....省略 ....
+
+    // 见3.3节内容，调用setState会创建update对象，其属性tag当时被标记为UpdateState
+    case UpdateState: {
+      // payload 存放的是要更新的状态state
+      const payload = update.payload;
+      let partialState;
+
+      // 获取要更新的状态
+      if (typeof payload === 'function') {
+        partialState = payload.call(instance, prevState, nextProps);
+      } else {
+        partialState = payload;
+      }
+
+      // partialState 为null 或者 undefined，则视为未操作，返回上次状态
+      if (partialState === null || partialState === undefined) {
+        return prevState;
+      }
+
+      // 注意：此处通过Object.assign生成一个全新的状态state， state的引用地址发生了变化。
+      return Object.assign({}, prevState, partialState);
     }
-    // ...省略...
+
+    // .... 省略 ....
+  }
+
+  return prevState;
+}
 ```
+
+`getStateFromUpdate` 函数主要功能是将存储在更新对象`update`上的`partialState`与上一次的`prevState`进行对象合并，生成一个全新的状态 state。
+
+**注意：**
+
+- `Object.assign` 第一个参数是空对象，也就是说新的 state 对象的引用地址发生了变化。
+- `Object.assign` 进行的是浅拷贝，不是深拷贝。
+
+### 4.2 processUpdateQueue 函数
+
+摘自 `ReactUpdateQueue.js`文件。
+
+```JS
+export function processUpdateQueue<State>(
+  workInProgress: Fiber,
+  queue: UpdateQueue<State>,
+  props: any,
+  instance: any,
+  renderExpirationTime: ExpirationTime,
+): void {
+  // ...省略...
+
+  // 获取上次状态prevState
+  let newBaseState = queue.baseState;
+
+  /**
+   * 若在render之前多次调用了setState，则会产生多个update对象。这些update对象会以链表的形式存在queue中。
+   * 现在对这个更新队列进行依次遍历，并计算出最终要更新的状态state。
+   */
+  let update = queue.firstUpdate;
+  let resultState = newBaseState;
+  while (update !== null) {
+    // ...省略...
+
+    /**
+     * resultState作为参数prevState传入getStateFromUpdate，然后getStateFromUpdate会合并生成
+     * 新的状态再次赋值给resultState。完成整个循环遍历，resultState即为最终要更新的state。
+     */
+    resultState = getStateFromUpdate(
+      workInProgress,
+      queue,
+      update,
+      resultState,
+      props,
+      instance,
+    );
+    // ...省略...
+
+    // 遍历下一个update对象
+    update = update.next;
+  }
+
+  // ...省略...
+
+  // 将处理后的resultState更新到workInProgess上
+  workInProgress.memoizedState = resultState;
+}
+```
+
+React 组件渲染之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象会以链表的形式存在队列 queue 中。`processUpdateQueue`函数会对这个队列进行依次遍历，每次遍历会将上一次的`prevState`与 update 对象的`partialState`进行合并，当完成所有遍历后，则算出最终的 state，此时将其存储在 workInProgress 的`memoizedState`属性上。
 
 ### 4.3 updateClassInstance 函数
 
-更新组件实例
+摘自 `ReactFiberClassComponent.js`文件。
 
 ```JS
 // Invokes the update life-cycles and returns false if it shouldn't rerender.
@@ -215,6 +298,7 @@ function updateClassInstance(
    */
   if (updateQueue !== null) {
     // 处理更新队列，将更新后的state存储在workInProgress中
+    //
     processUpdateQueue(
       workInProgress,
       updateQueue,
@@ -292,113 +376,28 @@ function updateClassInstance(
 
 ```
 
-### 4.4 processUpdateQueue 函数
-
-摘自 `ReactUpdateQueue.js`文件。
+### 4.4 beginWork 函数
 
 ```JS
-export function processUpdateQueue<State>(
-  workInProgress: Fiber,
-  queue: UpdateQueue<State>,
-  props: any,
-  instance: any,
-  renderExpirationTime: ExpirationTime,
-): void {
-  // ...省略...
-
-  // 获取上次状态prevState
-  let newBaseState = queue.baseState;
-
-  /**
-   * 若在render之前多次调用了setState，则会产生多个update对象。这些update对象会以链表的形式存在queue中。
-   * 现在对这个更新队列进行依次遍历，并计算出最终要更新的状态state。
-   */
-  let update = queue.firstUpdate;
-  let resultState = newBaseState;
-  while (update !== null) {
+  switch (workInProgress.tag) {
     // ...省略...
-
-    /**
-     * resultState作为参数prevState传入getStateFromUpdate，然后getStateFromUpdate会合并生成
-     * 新的状态再次赋值给resultState。完成整个循环遍历，resultState即为最终要更新的state。
-     */
-    resultState = getStateFromUpdate(
-      workInProgress,
-      queue,
-      update,
-      resultState,
-      props,
-      instance,
-    );
-    // ...省略...
-
-    // 遍历下一个update对象
-    update = update.next;
-  }
-
-  // ...省略...
-
-  // 将处理后的resultState更新到workInProgess上
-  workInProgress.memoizedState = resultState;
-}
-```
-
-在组件 render 之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象以链表的形式存在队列 queue 中。
-
-`processUpdateQueue`函数主要功能是对更新队列进行依次遍历，并算出最终的 state，将其存储在`workInProgress.memoizedState`中。
-
-### 4.5 getStateFromUpdate 函数
-
-摘自 `ReactUpdateQueue.js`文件。
-
-```JS
-function getStateFromUpdate<State>(
-  workInProgress: Fiber,
-  queue: UpdateQueue<State>,
-  update: Update<State>,
-  prevState: State,
-  nextProps: any,
-  instance: any,
-): any {
-  switch (update.tag) {
-
-    // ....省略 ....
-
-    // 见3.3节内容，调用setState会创建update对象，其属性tag当时被标记为UpdateState
-    case UpdateState: {
-      // payload 存放的是要更新的状态state
-      const payload = update.payload;
-      let partialState;
-
-      // 获取要更新的状态
-      if (typeof payload === 'function') {
-        partialState = payload.call(instance, prevState, nextProps);
-      } else {
-        partialState = payload;
-      }
-
-      // partialState 为null 或者 undefined，则视为未操作，返回上次状态
-      if (partialState === null || partialState === undefined) {
-        return prevState;
-      }
-
-      // 注意：此处通过Object.assign生成一个全新的状态state， state的引用地址发生了变化。
-      return Object.assign({}, prevState, partialState);
+    case ClassComponent: {
+      const Component = workInProgress.type;
+      const unresolvedProps = workInProgress.pendingProps;
+      const resolvedProps =
+        workInProgress.elementType === Component
+          ? unresolvedProps
+          : resolveDefaultProps(Component, unresolvedProps);
+      return updateClassComponent(
+        current,
+        workInProgress,
+        Component,
+        resolvedProps,
+        renderExpirationTime,
+      );
     }
-
-    // .... 省略 ....
-  }
-
-  return prevState;
-}
+    // ...省略...
 ```
-
-`getStateFromUpdate` 函数主要功能是将存储在更新对象`update`上的`partialState`与上一次的`prevState`进行对象合并，生成一个全新的状态 state。
-
-**注意：**
-
-- `Object.assign` 第一个参数是空对象，也就是说新的 state 对象的引用地址发生了变化。
-- `Object.assign` 进行的是浅拷贝，不是深拷贝。
 
 ## 五、小结
 

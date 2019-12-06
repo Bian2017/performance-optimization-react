@@ -68,7 +68,7 @@ ReactDOM.render(<App />, document.getElementById('root'));
 
 实际验证结果如下图所示，优化后的 App 组件不再产生重复渲染。
 
-![]()
+![性能优化](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/OpSameStateRecurrentOps.gif)
 
 但这个有个细节问题，可能大家平时并未想过，即：
 
@@ -125,11 +125,11 @@ class App extends PureComponent {
 ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
-经验证发现，虽然 PureComponent 减少了 App 组件的重复渲染，但是 App 组件的 state 的引用地址却发生了变化，这是为什么呢？
+经验证发现，虽然 `PureComponent` 减少了 App 组件的重复渲染，但是 App 组件的 state 的引用地址却发生了变化，这是为什么呢？
 
-下面结合 React V16.9.0 源码，浅谈下 setState 的更新机制。以下对源码存在部分删减，方便更快理解源码。
+![引用地址变化](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/OpSameStateSameAddress.gif)
 
-是依旧会发生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)。
+下面结合 React V16.9.0 源码，浅谈下`setState`的更新机制。以下对源码存在部分删减，方便更快理解源码。
 
 ## 三、浅谈 setState 更新机制
 

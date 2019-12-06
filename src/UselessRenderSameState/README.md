@@ -1,54 +1,61 @@
 ## 浅谈 setState 更新机制
 
-熟悉 React 同学想必对 setState 是再熟悉不过了，那么我在这抛一个问题，阅读文章的读者可以先内心想一下问题答案。
+了解 React 同学想必对`setState`函数是再熟悉不过了，`setState`也会经常作为面试题，考察前端求职者对 React 的熟悉程度。
 
-> 给 React 组件的 state 设置相同的值，组件的 state 并未发生变化，React 组件是否会发生重复渲染呢？
+此处我也抛一个问题，阅读文章前读者可以先内心想一下这个问题答案。
+
+> 给 React 组件的 state 每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生重复渲染呢？如果是，为什么？如果不是，那又是为什么？
 
 ## 一、场景复现
 
 针对上述问题，先进行一个简单的复现验证。
 
-App 组件有个设置按钮，每次点击`设置`按钮，都会对当前组件的 state 设置相同的值`{count: 1}`。然后我们通过全局变量 count 来记录页面渲染次数。
+![]()
+
+如图所示，App 组件有个设置按钮，每次点击设置按钮，都会对当前组件的 state 设置相同的值`{count: 1}`。然后我们通过全局变量 renderTimes 来记录页面发生渲染的次数。
 
 **App 组件**
 
 ```JS
-import React, { Component } from 'react'
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 
-// 全局变量，用于记录组件是否产生渲染
-let test_cnt = 1
+// 全局变量，用于记录组件渲染次数
+let renderTimes = 0;
 
-class NoStateChange extends Component {
+class App extends Component {
   constructor(props) {
-    super(props)
+    super(props);
     this.state = {
       count: 1
-    }
-  }
-
-  componentWillUpdate() {
-    test_cnt = test_cnt + 1
+    };
   }
 
   handleClick = () => {
-    this.setState({ count: 1 })
-  }
+    this.setState({ count: 1 });
+  };
 
   render() {
+    renderTimes += 1;
+
     return (
       <div>
-        <p>每次点击“设置”按钮，数值count会被设置成相同值。</p>
-        <p>当前count值: {this.state.count}</p>
-        <p>组件发生渲染：{test_cnt}</p>
+        <h3>场景复现：</h3>
+        <p>每次点击“设置”按钮，当前组件的状态都会被设置成相同的数值。</p>
+        <p>当前组件的状态: {this.state.count}</p>
         <p>
-          <button onClick={this.handleClick}>设置</button>
+          当前组件发生渲染的次数：
+          <span style={{ color: 'red' }}>{renderTimes}</span>
         </p>
+        <div>
+          <button onClick={this.handleClick}>设置</button>
+        </div>
       </div>
-    )
+    );
   }
 }
 
-export default NoStateChange
+ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
 实际验证结果表明，如下图所示，每次点击设置按钮，App 组件均会产生重复渲染。
@@ -70,9 +77,12 @@ PureComponent 组件来减少重复渲染。
 
 ## 三、浅谈 setState 更新机制
 
-![]()
+![setState更新机制](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/updateState.jpg)
 
-结合上图
+从上图可以看出，setState 操作主要分成两大块：
+
+- 将更新的状态添加至更新队列中；
+- 从更新队列中取出要更新的状态，计算出最终要更新的状态，更新到组件实例中，然后完成组件的渲染。
 
 ### 3.1 入队列
 
@@ -154,11 +164,13 @@ export function createUpdate(
 
 函数`createUpdate`会创建一个`update`对象，用于存放更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`。
 
-### 3.2 状态更新机制
+### 3.2 setState 状态更新机制
 
 从上图可以看出，每次调用`setState`函数都会创建一个调度任务。然后经过一系列函数调用，最终会调起函数`updateClassComponent`。
 
-图中红色区域涉及知识点较多，与我们要讨论的状态更新关系不大，不是我们此次的讨论重点，所以我们先跳过，待后续研究(挖坑)。
+图中红色区域涉及知识点较多，与我们要讨论的状态更新机制关系不大，不是我们此次的讨论重点，所以我们先行跳过，待后续研究(挖坑)。
+
+下面我们简单聊一下组件的状态是如何一步步完成更新的。
 
 #### 3.2.1 getStateFromUpdate 函数
 

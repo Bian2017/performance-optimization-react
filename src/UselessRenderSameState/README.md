@@ -124,7 +124,7 @@ enqueueSetState(inst, payload, callback) {
 
 函数`enqueueSetState`会创建一个`update`对象，并将要更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`等都会挂载在该对象上。然后将该`update`对象添加到更新队列中，并且产生一个调度任务。
 
-若组件渲染之前多次调用了`setState`，则会产生多个`update`对象，并依次添加到更新队列中，同时也会产生多个调度任务。
+若组件渲染之前多次调用了`setState`，则会产生多个`update`对象，会被依次添加到更新队列中，同时也会产生多个调度任务。
 
 #### 3.1.3 createUpdate 函数定义
 
@@ -152,13 +152,13 @@ export function createUpdate(
 }
 ```
 
-函数`createUpdate`创建了一个`update`对象，用于存放更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`。
+函数`createUpdate`会创建一个`update`对象，用于存放更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`。
 
-### 3.2 调度任务
+### 3.2 状态更新机制
 
-每次调用`enqueueSetState`函数，都会创建一个调度任务。然后过经过一系列调度，最终会调起 updateClassComponent 组件。
+从上图可以看出，每次调用`setState`函数都会创建一个调度任务。然后经过一系列函数调用，最终会调起函数`updateClassComponent`。
 
-调度不是我们这次的讨论重点，所以我们先暂时跳过。后续有空再研究下，挖坑代填。
+图中红色区域涉及知识点较多，与我们要讨论的状态更新关系不大，不是我们此次的讨论重点，所以我们先跳过，待后续研究(挖坑)。
 
 #### 3.2.1 getStateFromUpdate 函数
 

@@ -2,7 +2,7 @@
 
 了解 React 同学想必对`setState`函数是再熟悉不过了，`setState`也会经常作为面试题，考察前端求职者对 React 的熟悉程度。
 
-此处我也抛一个问题，阅读文章前读者可以先内心想一下这个问题答案。
+在此我也抛一个问题，阅读文章前读者可以先想一下这个问题答案。
 
 > 给 React 组件的 state 每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生重复渲染呢？如果是，为什么？如果不是，那又是为什么？
 
@@ -10,9 +10,9 @@
 
 针对上述问题，先进行一个简单的复现验证。
 
-![]()
+![场景复现](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/sameStateRecurrent.png)
 
-如图所示，App 组件有个设置按钮，每次点击设置按钮，都会对当前组件的 state 设置相同的值`{count: 1}`。然后我们通过全局变量 renderTimes 来记录页面发生渲染的次数。
+如图所示，App 组件有个设置按钮，每次点击设置按钮，都会对当前组件的状态设置相同的值`{count: 1}`，我们通过全局变量`renderTimes`来记录页面发生渲染的次数。
 
 **App 组件**
 
@@ -58,16 +58,72 @@ class App extends Component {
 ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
-实际验证结果表明，如下图所示，每次点击设置按钮，App 组件均会产生重复渲染。
+实际验证结果如下所示，每次点击设置按钮，App 组件均会产生重复渲染。
+
+![场景复现操作](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/sameStateRecurrentOps.gif)
 
 ## 二、性能优化
 
-那么该如何减少 App 组价发生重复渲染呢？在 React 性能优化——浅谈 memo 这一文中，我们详细介绍了 PureComponent 的定义以及内部实现机制，因此我们此处利用
-PureComponent 组件来减少重复渲染。
+那么该如何减少 App 组价发生重复渲染呢？之前在 [React 性能优化——浅谈 PureComponent 组件与 memo 组件](https://juejin.im/post/5de364a4f265da05be3e5af3) 这一文中，详细介绍了`PureComponent`的定义以及内部实现机制。此处可利用`PureComponent`组件来减少重复渲染。
 
-实际验证结果如下图所示，优化后的 App 组件不再产生重复渲染。但这个有个细节问题，可能大家平时并未想过，如下：
+实际验证结果如下图所示，优化后的 App 组件不再产生重复渲染。
 
-> 我们利用 PureComponent 减少了 App 组件的重复渲染，那么 App 组件的 state 是否产生变化，即引用地址依旧是上次的地址吗？
+![]()
+
+但这个有个细节问题，可能大家平时并未想过，即：
+
+> 我们利用 `PureComponent` 减少了 App 组件的重复渲染，那么 App 组件的 state 是否产生变化，即引用地址依旧是上次的地址吗？
+
+废话不多说，我们针对这一问题进行下复现验证。
+
+```JS
+import React, { PureComponent } from 'react';
+import ReactDOM from 'react-dom';
+
+// 全局变量，用于记录组件渲染次数
+let renderTimes = 0;
+// 全局变量，记录组件的上次状态
+let lastState = null;
+
+class App extends PureComponent {
+  constructor(props) {
+    super(props);
+    this.state = {
+      count: 1
+    };
+    lastState = this.state; // 初始化，地址保持一致
+  }
+
+  handleClick = () => {
+    console.log(`当前组件状态是否是上一次状态：${this.state === lastState}`);
+
+    this.setState({ count: 1 });
+    // 更新上一次状态
+    lastState = this.state;
+  };
+
+  render() {
+    renderTimes += 1;
+
+    return (
+      <div>
+        <h3>场景复现：</h3>
+        <p>每次点击“设置”按钮，当前组件的状态都会被设置成相同的数值。</p>
+        <p>当前组件的状态: {this.state.count}</p>
+        <p>
+          当前组件发生渲染的次数：
+          <span style={{ color: 'red' }}>{renderTimes}</span>
+        </p>
+        <div>
+          <button onClick={this.handleClick}>设置</button>
+        </div>
+      </div>
+    );
+  }
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+```
 
 经验证发现，虽然 PureComponent 减少了 App 组件的重复渲染，但是 App 组件的 state 的引用地址却发生了变化，这是为什么呢？
 

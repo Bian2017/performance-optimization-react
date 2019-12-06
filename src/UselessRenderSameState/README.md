@@ -68,15 +68,17 @@ PureComponent 组件来减少重复渲染。
 
 是依旧会发生重复渲染，详见[样例展示](https://bian2017.github.io/performance-optimization-react/UselessRenderSameState.html)。
 
-## 三、入队列
+## 三、浅谈 setState 更新机制
 
 ![]()
 
 结合上图
 
-### 3.1 setState 函数定义
+### 3.1 入队列
 
-以下代码摘自 `ReactBaseClasses.js`文件。
+#### 3.1.1 setState 函数定义
+
+摘自`ReactBaseClasses.js`文件。
 
 ```JS
 Component.prototype.setState = function(partialState, callback) {
@@ -84,11 +86,11 @@ Component.prototype.setState = function(partialState, callback) {
 };
 ```
 
-从上述代码我们可以看出，setState 包含两个参数 partialState 和 callback，其中 partialState 表示我们修改的部分状态 state，callback 则是函数回调。
+函数`setState`包含两个参数`partialState`和`callback`，其中`partialState`表示待更新的部分状态，`callback`则为状态更新后的回调函数。
 
-### 3.2 enqueueSetState 函数定义
+#### 3.1.2 enqueueSetState 函数定义
 
-代码摘自 React v16.9.0 中的 `ReactFiberClassComponent.js`文件。
+摘自`ReactFiberClassComponent.js`文件。
 
 ```JS
 enqueueSetState(inst, payload, callback) {
@@ -101,33 +103,32 @@ enqueueSetState(inst, payload, callback) {
     suspenseConfig,
   );
 
-  // 创建了一个新的对象
+  // 创建一个update对象
   const update = createUpdate(expirationTime, suspenseConfig);
   // payload存放的是要更新的状态，即partialState
   update.payload = payload;
 
-  // 如果存在函数回调，则callback挂载在update对象上
+  // 如果定义了callback，则将callback挂载在update对象上
   if (callback !== undefined && callback !== null) {
     update.callback = callback;
   }
 
-  if (revertPassiveEffectsChange) {
-    flushPassiveEffects();
-  }
-  // 添加到更新队列中
+  // ...省略...
+
+  // 将update对象添加至更新队列中
   enqueueUpdate(fiber, update);
-  // 调度任务
+  // 添加调度任务
   scheduleWork(fiber, expirationTime);
 },
 ```
 
-enqueueSetState 函数会创建一个 update 对象，该对象会挂载要变化的 partialState、函数回调、渲染的过去时间。然后加 update 对象添加到更新队列中，并且产生一个调度任务。
+函数`enqueueSetState`会创建一个`update`对象，并将要更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`等都会挂载在该对象上。然后将该`update`对象添加到更新队列中，并且产生一个调度任务。
 
-如果在 render 函数之前多次调用了 setState，则会产生多个 update 对象，并依次添加到更新到更新队列中，并产生多个调度任务。
+若组件渲染之前多次调用了`setState`，则会产生多个`update`对象，并依次添加到更新队列中，同时也会产生多个调度任务。
 
-### 3.3 createUpdate 函数定义
+#### 3.1.3 createUpdate 函数定义
 
-以下代码摘自 `ReactUpdateQueue.js`文件。
+摘自 `ReactUpdateQueue.js`文件。
 
 ```ts
 export function createUpdate(
@@ -138,7 +139,7 @@ export function createUpdate(
     expirationTime,
     suspenseConfig,
 
-    // 添加标识位，表示当前操作是UpdateState
+    // 添加TAG标识，表示当前操作是UpdateState，后续会用到。
     tag: UpdateState,
     payload: null,
     callback: null,
@@ -151,15 +152,15 @@ export function createUpdate(
 }
 ```
 
-createUpdate 创建了一个新的 update 对象。
+函数`createUpdate`创建了一个`update`对象，用于存放更新的状态`partialState`、状态更新后的回调函数`callback`和渲染的过期时间`expirationTime`。
 
-## 四、调度任务
+### 3.2 调度任务
 
 每次调用`enqueueSetState`函数，都会创建一个调度任务。然后过经过一系列调度，最终会调起 updateClassComponent 组件。
 
 调度不是我们这次的讨论重点，所以我们先暂时跳过。后续有空再研究下，挖坑代填。
 
-### 4.1 getStateFromUpdate 函数
+#### 3.2.1 getStateFromUpdate 函数
 
 摘自 `ReactUpdateQueue.js`文件。
 
@@ -212,7 +213,7 @@ function getStateFromUpdate<State>(
 - `Object.assign` 第一个参数是空对象，也就是说新的 state 对象的引用地址发生了变化。
 - `Object.assign` 进行的是浅拷贝，不是深拷贝。
 
-### 4.2 processUpdateQueue 函数
+#### 3.2.2 processUpdateQueue 函数
 
 摘自 `ReactUpdateQueue.js`文件。
 
@@ -265,7 +266,7 @@ export function processUpdateQueue<State>(
 
 React 组件渲染之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象会以链表的形式存在队列 queue 中。`processUpdateQueue`函数会对这个队列进行依次遍历，每次遍历会将上一次的`prevState`与 update 对象的`partialState`进行合并，当完成所有遍历后，就能算出最终要更新的状态 state，此时会将其存储在 workInProgress 的`memoizedState`属性上。
 
-### 4.3 updateClassInstance 函数
+#### 3.2.3 updateClassInstance 函数
 
 摘自 `ReactFiberClassComponent.js`文件。
 
@@ -357,7 +358,7 @@ function updateClassInstance(
 
 代码解读到此处，想必大家对之前提到的两个疑问都有了答案吧。
 
-### 4.4 updateClassComponent 函数
+#### 3.2.4 updateClassComponent 函数
 
 ```JS
 function updateClassComponent(
@@ -412,7 +413,7 @@ function updateClassComponent(
 - 完成组件实例的渲染；
 - 返回下一个待处理的任务单元；
 
-## 五、小结
+## 四、小结
 
 每次调用 setState，都会创建一个全新的 state，并引起组件的重新渲染。即使使用`PureComponent`进行性能优化，组件的 state 的引用地址依旧产生了变化。
 

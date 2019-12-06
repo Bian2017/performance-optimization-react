@@ -263,14 +263,13 @@ export function processUpdateQueue<State>(
 }
 ```
 
-React 组件渲染之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象会以链表的形式存在队列 queue 中。`processUpdateQueue`函数会对这个队列进行依次遍历，每次遍历会将上一次的`prevState`与 update 对象的`partialState`进行合并，当完成所有遍历后，则算出最终的 state，此时将其存储在 workInProgress 的`memoizedState`属性上。
+React 组件渲染之前，我们通常会多次调用`setState`，每次调用`setState`都会产生一个 update 对象。这些 update 对象会以链表的形式存在队列 queue 中。`processUpdateQueue`函数会对这个队列进行依次遍历，每次遍历会将上一次的`prevState`与 update 对象的`partialState`进行合并，当完成所有遍历后，就能算出最终要更新的状态 state，此时会将其存储在 workInProgress 的`memoizedState`属性上。
 
 ### 4.3 updateClassInstance 函数
 
 摘自 `ReactFiberClassComponent.js`文件。
 
 ```JS
-// Invokes the update life-cycles and returns false if it shouldn't rerender.
 function updateClassInstance(
   current: Fiber,
   workInProgress: Fiber,
@@ -278,6 +277,7 @@ function updateClassInstance(
   newProps: any,
   renderExpirationTime: ExpirationTime,
 ): boolean {
+  // 获取当前实例
   const instance = workInProgress.stateNode;
 
   // ...省略...
@@ -315,7 +315,7 @@ function updateClassInstance(
     );
 
   if (shouldUpdate) {
-     // 执行相应的生命周期函数
+     // 如果需要更新，则执行相应的生命周期函数
      if (typeof instance.UNSAFE_componentWillUpdate === 'function' ||
         typeof instance.componentWillUpdate === 'function') {
       startPhaseTimer(workInProgress, 'componentWillUpdate');
@@ -333,8 +333,9 @@ function updateClassInstance(
   // ...省略...
 
   /**
-   * 不管shouldUpdate的值是true还是false，都会更新当前组件实例的props和state的值，即引用地址发生变化。
-   * 也就是说即使我们采用PureComponent来减少无用渲染，但并不代表该组件的state或者props的引用地址没有发生变化。
+   * 不管shouldUpdate的值是true还是false，都会更新当前组件实例的props和state的值，
+   * 即组件实例的state和props的引用地址发生变化。也就是说即使我们采用PureComponent来减少无用渲染，
+   * 但并不代表该组件的state或者props的引用地址没有发生变化！！！
    */
   instance.props = newProps;
   instance.state = newState;
@@ -343,16 +344,18 @@ function updateClassInstance(
 }
 ```
 
-从上述代码可以看出，`updateClassInstance`函数做了以下几个功能点：
+从上述代码可以看出，`updateClassInstance`函数主要实现了以下几个功能：
 
-- 遍历更新队列，产生一个全新的 state，并更新至组件实例的 state；
-- 返回是否要进行更新的标识位 shouldUpdate，该值的运行结果取决于`shouldComponentUpdate`生命周期函数执行结果或者`PureComponent`的浅比较结果；
-- 如果 shouldUpdate 的值为`true`，则执行生命周期函数`componentWillUpdate`；
+- 遍历更新队列，产生一个全新的 state，并将其更新至组件实例的 state 上；
+- 返回是否要进行更新的标识 `shouldUpdate`，该值的运行结果取决于`shouldComponentUpdate`生命周期函数执行结果或者`PureComponent`的浅比较结果；
+- 如果 `shouldUpdate` 的值为`true`，则执行相应生命周期函数`componentWillUpdate`；
 
-此时要特别注意以下几个点：
+此时要特别注意以下几点：
 
-1. 组件实例的状态发生变化，其引用地址发生变化；
-2. 即使采用`PureComponent`或者`shouldComponentUpdate`来减少无用渲染，但组件实例的 props 或者 state 的引用地址也发生了变化。
+1. 组件实例的状态 state 发生变化，即引用地址发生变化；
+2. 即使采用`PureComponent`或者`shouldComponentUpdate`来减少无用渲染，但组件实例的 props 或者 state 的引用地址也依旧发生了变化。
+
+代码解读到此处，想必大家对之前提到的两个疑问都有了答案吧。
 
 ### 4.4 updateClassComponent 函数
 
@@ -364,6 +367,7 @@ function updateClassComponent(
   nextProps,
   renderExpirationTime: ExpirationTime,
 ) {
+  // 获取组件实例
   const instance = workInProgress.stateNode;
 
   // ...省略...
@@ -371,8 +375,9 @@ function updateClassComponent(
   let shouldUpdate;
 
   /**
-   * 获取是否要进行渲染的标识shouldUpdate，
-   *
+   * 1. 完成组件实例的state、props的更新;
+   * 2. componentWillUpdate、shouldComponentUpdate生命周期函数执行完毕；
+   * 3. 获取是否要进行更新的标识shouldUpdate；
    */
   shouldUpdate = updateClassInstance(
     current,
@@ -382,7 +387,10 @@ function updateClassComponent(
     renderExpirationTime,
   );
 
-  // 在 finishClassComponent会根据shouldUpdate值判断是否退出渲染
+  /**
+   * 1. 如果shouldUpdate值为false，则退出渲染；
+   * 2. 执行render函数
+   */
   const nextUnitOfWork = finishClassComponent(
     current,
     workInProgress,
@@ -392,12 +400,20 @@ function updateClassComponent(
     renderExpirationTime,
   );
 
+  // 返回下一个任务单元
   return nextUnitOfWork;
 }
 ```
 
-`updateClassComponent`函数主要作用是完成组件实例的 state、props 的更新，并返回下一个待处理的任务单元。
+从上述代码可以看出，`updateClassComponent`函数主要实现了以下几个功能：
+
+- 完成组件实例的 state、props 的更新;
+- 执行 `componentWillUpdate`、`shouldComponentUpdate`等生命周期函数；
+- 完成组件实例的渲染；
+- 返回下一个待处理的任务单元；
 
 ## 五、小结
 
 每次调用 setState，都会创建一个全新的 state，并引起组件的重新渲染。即使使用`PureComponent`进行性能优化，组件的 state 的引用地址依旧产生了变化。
+
+如果大家觉得博文还不错，那就帮忙点个赞吧。

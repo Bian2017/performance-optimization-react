@@ -4,7 +4,7 @@
 
 在此我也抛一个问题，阅读文章前读者可以先想一下这个问题的答案。
 
-> 给 React 组件的 state 每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生重复渲染？如果是，为什么？如果不是，那又为什么？
+> 给 React 组件的 state 每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生渲染？如果是，为什么？如果不是，那又为什么？
 
 ## 一、场景复现
 
@@ -12,7 +12,7 @@
 
 ![场景复现](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/sameStateRecurrent.png)
 
-如图所示，App 组件有个设置按钮，每次点击设置按钮，都会对当前组件的状态设置相同的值`{count: 1}`，当组件发生渲染时渲染次数会自动累加一。
+如图所示，App 组件有个设置按钮，每次点击设置按钮，都会对当前组件的状态设置相同的值`{count: 1}`，当组件发生渲染时渲染次数会自动累加一，代码如下所示：
 
 **App 组件**
 
@@ -64,17 +64,19 @@ ReactDOM.render(<App />, document.getElementById('root'));
 
 ## 二、性能优化
 
-那么该如何减少 App 组件发生重复渲染呢？之前在 [React 性能优化——浅谈 PureComponent 组件与 memo 组件](https://juejin.im/post/5de364a4f265da05be3e5af3) 一文中，详细介绍了`PureComponent`的定义以及内部实现机制。此处利用`PureComponent`组件来减少重复渲染。
+那么该如何减少 App 组件发生重复渲染呢？之前在 [React 性能优化——浅谈 PureComponent 组件与 memo 组件](https://juejin.im/post/5de364a4f265da05be3e5af3) 一文中，详细介绍了`PureComponent`的内部实现机制，此处可利用`PureComponent`组件来减少重复渲染。
 
 实际验证结果如下所示，优化后的 App 组件不再产生重复渲染。
 
 ![性能优化](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/OpSameStateRecurrentOps.gif)
 
-但这有个细节问题，可能大家平时并未想过：
+但这有个细节问题，可能大家平时工作中并未想过：
 
-> 利用 `PureComponent` 组件可减少 App 组件的重复渲染，那么是否代表 App 组件的 state 没有发生变化呢？即引用地址是否依旧是上次地址呢？
+> 利用 `PureComponent` 组件可减少 App 组件的重复渲染，那么是否代表 App 组件的状态没有发生变化呢？即引用地址是否依旧是上次地址呢？
 
 废话不多说，我们针对这一问题进行下测试验证，代码如下：
+
+**APP 组件**
 
 ```JS
 import React, { PureComponent } from 'react';
@@ -125,22 +127,28 @@ class App extends PureComponent {
 ReactDOM.render(<App />, document.getElementById('root'));
 ```
 
-经验证发现，虽然 `PureComponent` 减少了 App 组件的重复渲染，但是 App 组件的 state 的引用地址却发生了变化，这是为什么呢？
+在 APP 组件中，我们通过全局变量`lastState`来记录组件的上次状态。当点击设置按钮时，会比较当前组件状态与上一次状态是否相等，即引用地址是否一样？
 
 ![引用地址变化](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/OpSameStateSameAddress.gif)
 
-下面结合 React V16.9.0 源码，浅谈下`setState`的更新机制。以下对源码存在部分删减，方便更快理解源码。
+经验证发现，虽然 `PureComponent`组件减少了 App 组件的重复渲染，但是 App 组件状态的引用地址却发生了变化，这是为什么呢？
 
-## 三、浅谈 setState 更新机制
+下面我们将带着这两个疑问，结合 React V16.9.0 源码，聊一聊`setState`的状态更新机制。解读过程中为了更好的理解源码，会对源码存在部分删减。
+
+## 三、setState 状态更新机制
+
+在解读源码的过程中，整理了一份函数`setState`调用逻辑，如下所示：
 
 ![setState更新机制](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/updateState.jpg)
 
-从上图可以看出，setState 操作主要分成两大块：
+从上图可以看出，函数`setState`调用关系主要分为以下两个功能：
 
 - 将更新的状态添加至更新队列中；
-- 从更新队列中取出要更新的状态，计算出最终要更新的状态，更新到组件实例中，然后完成组件的渲染。
+- 产生一个调度任务，遍历更新队列并计算出最终要更新的状态，更新到组件实例中，然后完成组件的渲染。
 
-### 3.1 入队列
+下面针对这两个功能，结合源码，进行详细的阐述。
+
+### 3.1 入更新队列
 
 #### 3.1.1 setState 函数定义
 
@@ -483,6 +491,13 @@ function updateClassComponent(
 
 ## 四、小结
 
-每次调用 setState，都会创建一个全新的 state，并引起组件的重新渲染。即使使用`PureComponent`进行性能优化，组件的 state 的引用地址依旧产生了变化。
+经过之前的代码解读，相信大家应该对函数`setState`应该有了全新的认识，针对上述两个疑问，应该都有了自己的答案。在此我简单小结一下：
 
-如果大家觉得博文还不错，那就帮忙点个赞吧。
+每次调用函数`setState`，react 都会将要更新的状态添加到更新队列中，并产生一个调度任务。调度任务在执行的过程中会做两个事情：
+
+- 遍历更新队列，计算出全新的状态 state，更新到组件实例中；
+- 根据标识`shouldUpdate`来决定是否对组件实例进行重新渲染，而标识`shouldUpdate`的值则取决于`PureComponent`组件浅比较结果或者生命周期函数`shouldComponentUpdate`执行结果；
+
+利用`PureComponent`组件可以减少组件实例的重复渲染，但组件实例的状态由于被赋予了一个全新的状态，所以引用地址发生了变化。
+
+文章就暂时写到这了，如果大家觉得博文还不错，那就帮忙点个赞吧。

@@ -4,7 +4,7 @@
 
 在此我也抛一个问题，阅读文章前读者可以先想一下这个问题的答案。
 
-> 给 React 组件的 state 每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生渲染？如果是，为什么？如果不是，那又为什么？
+> 给 React 组件的状态每次设置相同的值，如`setState({count: 1})`。React 组件是否会发生渲染？如果是，为什么？如果不是，那又为什么？
 
 ## 一、场景复现
 
@@ -131,22 +131,22 @@ ReactDOM.render(<App />, document.getElementById('root'));
 
 ![引用地址变化](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/OpSameStateSameAddress.gif)
 
-经验证发现，虽然 `PureComponent`组件减少了 App 组件的重复渲染，但是 App 组件状态的引用地址却发生了变化，这是为什么呢？
+在 console 窗口中我们发现，虽然 `PureComponent`组件减少了 App 组件的重复渲染，但是 App 组件状态的引用地址却发生了变化，这是为什么呢？
 
 下面我们将带着这两个疑问，结合 React V16.9.0 源码，聊一聊`setState`的状态更新机制。解读过程中为了更好的理解源码，会对源码存在部分删减。
 
 ## 三、setState 状态更新机制
 
-在解读源码的过程中，整理了一份函数`setState`调用逻辑，如下所示：
+在解读源码的过程中，整理了一份函数`setState`调用关系流程图，如下所示：
 
 ![setState更新机制](https://raw.githubusercontent.com/Bian2017/performance-optimization-react/master/docs/img/updateState.jpg)
 
-从上图可以看出，函数`setState`调用关系主要分为以下两个功能：
+从上图可以看出，函数`setState`调用关系主要分为以下两个部分：
 
-- 将更新的状态添加至更新队列中；
-- 产生一个调度任务，遍历更新队列并计算出最终要更新的状态，更新到组件实例中，然后完成组件的渲染。
+- 将要更新的状态添加到更新队列中；
+- 产生一个调度任务。调度任务会遍历更新队列并计算出最终要更新的状态，将其更新到组件实例中，然后完成组件渲染操作。
 
-下面针对这两个功能，结合源码，进行详细的阐述。
+下面针对这两个部分，结合源码，进行下详细阐述。
 
 ### 3.1 入更新队列
 
@@ -234,7 +234,7 @@ export function createUpdate(
 
 图中红色区域涉及知识点较多，与我们要讨论的状态更新机制关系不大，不是我们此次的讨论重点，所以我们先行跳过，待后续研究(挖坑)。
 
-下面我们简单聊一下组件的状态是如何一步步完成更新的。
+下面我们就简单聊下组件实例的状态是如何一步步完成更新操作的。
 
 #### 3.2.1 getStateFromUpdate 函数
 
@@ -491,7 +491,7 @@ function updateClassComponent(
 
 ## 四、小结
 
-经过之前的代码解读，相信大家应该对函数`setState`应该有了全新的认识，针对上述两个疑问，应该都有了自己的答案。在此我简单小结一下：
+经过上章的代码解读，相信大家应该对函数`setState`应该有了全新的认识。之前提到的两个疑问，应该都有了自己的答案。在此我简单小结一下：
 
 每次调用函数`setState`，react 都会将要更新的状态添加到更新队列中，并产生一个调度任务。调度任务在执行的过程中会做两个事情：
 
